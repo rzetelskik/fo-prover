@@ -6,6 +6,11 @@ maintainer: Kacper Rzetelski <rzetelski.k@gmail.com>
 ghc-options: -Wall
 
 language: Haskell2010
+default-extensions:
+- UnicodeSyntax
+- TypeSynonymInstances
+- FlexibleInstances
+- LambdaCase
 
 dependencies:
 - base >= 4.11 && < 5

@@ -25,6 +25,11 @@ executable FO-prover
   hs-source-dirs:
       app
       src
+  default-extensions:
+      UnicodeSyntax
+      TypeSynonymInstances
+      FlexibleInstances
+      LambdaCase
   ghc-options: -Wall
   build-depends:
       QuickCheck ==2.14.*

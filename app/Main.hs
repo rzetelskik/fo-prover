@@ -17,8 +17,6 @@ import Test.QuickCheck hiding (Fun, (===))
 import Formula
 import Parser hiding (one)
 
-prover _ = False
-
 main :: IO ()
 main = do
     eof <- hIsEOF stdin
@@ -27,7 +25,7 @@ main = do
         else do
                 line <- getLine -- read the input
                 let phi = parseString line -- call the parser
-                let res = prover phi -- call the prover
+                let res = aedecide phi -- call the prover
                 if res
                   then putStrLn "1" -- write 1 if the formula is a tautology
                   else putStrLn "0" -- write 0 if the formula is not a tautology
