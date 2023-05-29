@@ -14,7 +14,7 @@ import Control.Monad.State
 
 import Test.QuickCheck hiding (Fun, (===))
 
-import Formula
+import FirstOrder
 import Parser hiding (one)
 
 main :: IO ()

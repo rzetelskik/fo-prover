@@ -18,6 +18,7 @@ source-repository head
 executable FO-prover
   main-is: Main.hs
   other-modules:
+      FirstOrder
       Formula
       Parser
       Utils
