@@ -1,0 +1,9 @@
+# Test leftovers
+/points.txt
+/score.txt
+
+# cabal
+/dist-newstyle
+
+# Executable
+/FO-prover

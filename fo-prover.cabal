@@ -1,0 +1,36 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.35.2.
+--
+-- see: https://github.com/sol/hpack
+
+name:           fo-prover
+version:        0.0.1
+homepage:       https://github.com/rzetelskik/fo-prover#readme
+bug-reports:    https://github.com/rzetelskik/fo-prover/issues
+maintainer:     Kacper Rzetelski <rzetelski.k@gmail.com>
+build-type:     Simple
+
+source-repository head
+  type: git
+  location: https://github.com/rzetelskik/fo-prover
+
+executable FO-prover
+  main-is: Main.hs
+  other-modules:
+      Formula
+      Parser
+      Utils
+      Paths_fo_prover
+  hs-source-dirs:
+      app
+      src
+  ghc-options: -Wall
+  build-depends:
+      QuickCheck ==2.14.*
+    , base >=4.11 && <5
+    , containers ==0.6.*
+    , mtl ==2.2.*
+    , parsec ==3.1.*
+    , random ==1.2.*
+  default-language: Haskell2010
