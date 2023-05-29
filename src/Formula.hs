@@ -238,6 +238,8 @@ nnf = \case
   (Forall x phi) -> Forall x (nnf phi)
   (Not (Forall x phi)) -> Exists x (nnf (Not phi))
 
+  phi -> phi
+
 pnf :: Formula -> Formula
 pnf phi = pnf' . nnf $ phi
   where
@@ -250,47 +252,43 @@ pnf phi = pnf' . nnf $ phi
       phi -> phi
 
     pull_quantifiers = \case
-      (And (Forall x phi) (Forall x' psi)) -> if x == x'
-        then Forall x (pull_quantifiers $ And phi psi)
-        else Forall y (pull_quantifiers $ And (rename x y phi) (rename x' y psi)) where
-          y = freshVariant x (And phi psi)
+      (And (Forall x phi) (Forall x' psi)) -> if x == x' then
+          Forall x (pull_quantifiers $ And phi psi)
+        else 
+          let y = freshVariant x (And phi psi) in Forall y (pull_quantifiers $ And (rename x y phi) (rename x' y psi))
 
-      (And (Forall x phi) psi) -> if x `freshIn` psi 
-        then Forall x (pull_quantifiers $ And phi psi)
-        else Forall y (pull_quantifiers $ And (rename x y phi) psi) where
-          y = freshVariant x (And phi psi)
+      (And (Forall x phi) psi) -> 
+        if x `freshIn` psi then
+          Forall x (pull_quantifiers $ And phi psi)
+        else
+          let y = freshVariant x (And phi psi) in Forall y (pull_quantifiers $ And (rename x y phi) psi)
       
       (And phi psi@(Forall _ _)) -> pull_quantifiers (And psi phi)
       
-      (Or (Forall x phi) (Forall x' psi)) -> if x == x'
-        then Forall x (pull_quantifiers $ Or phi psi)
-        else Forall y (pull_quantifiers $ Or (rename x y phi) (rename x' y psi)) where
-          y = freshVariant x (Or phi psi)
-      
-      (Or (Forall x phi) psi) -> if x `freshIn` psi
-        then Forall x (pull_quantifiers $ Or phi psi)
-        else Forall y (pull_quantifiers $ Or (rename x y phi) psi) where
-          y = freshVariant x (Or phi psi)
-      
+      (Or (Forall x phi) psi) -> if x `freshIn` psi then
+          Forall x (pull_quantifiers $ Or phi psi)
+        else 
+          let y = freshVariant x (Or phi psi) in Forall y (pull_quantifiers $ Or (rename x y phi) psi)
+          
       (Or phi psi@(Forall _ _)) -> pull_quantifiers (Or psi phi)
       
-      (And (Exists x phi) psi) -> if x `freshIn` psi
-        then Exists x (pull_quantifiers $ And phi psi)
-        else Exists y (pull_quantifiers $ And (rename x y phi) psi) where
-          y = freshVariant x (And phi psi)
-      
+      (And (Exists x phi) psi) -> if x `freshIn` psi then
+          Exists x (pull_quantifiers $ And phi psi)
+        else 
+          let y = freshVariant x (And phi psi) in Exists y (pull_quantifiers $ And (rename x y phi) psi)
+
       (And phi psi@(Exists _ _)) -> pull_quantifiers (And psi phi)
       
-      (Or (Exists x phi) (Exists x' psi)) -> if x == x'
-        then Exists x (pull_quantifiers $ Or phi psi)
-        else Exists y (pull_quantifiers $ Or (rename x y phi) (rename x' y psi)) where
-          y = freshVariant x (Or phi psi)
+      (Or (Exists x phi) (Exists x' psi)) -> if x == x' then
+          Exists x (pull_quantifiers $ Or phi psi)
+        else 
+          let y = freshVariant x (Or phi psi) in Exists y (pull_quantifiers $ Or (rename x y phi) (rename x' y psi))
       
-      (Or (Exists x phi) psi) -> if x `freshIn` psi
-        then Exists x (pull_quantifiers $ Or phi psi)
-        else Exists y (pull_quantifiers $ Or (rename x y phi) psi) where
-          y = freshVariant x (Or phi psi)
-      
+      (Or (Exists x phi) psi) -> if x `freshIn` psi then
+          Exists x (pull_quantifiers $ Or phi psi)
+        else 
+          let y = freshVariant x (Or phi psi) in Exists y (pull_quantifiers $ Or (rename x y phi) psi)
+          
       (Or phi psi@(Exists _ _)) -> pull_quantifiers (Or psi phi)
       
       phi -> phi
