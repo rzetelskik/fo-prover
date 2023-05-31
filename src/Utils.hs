@@ -1,10 +1,10 @@
 module Utils where
 
-import System.IO.Unsafe
+import Debug.Trace (trace)
 
 -- useful for debugging
-debug :: Show a => String -> a -> a
-debug str x = seq (unsafePerformIO $ do putStr "<"; putStr str; putStr ": "; print x; putStr ">") x
+debug :: Show a => a -> String -> a
+debug o name = trace (name ++ " = " ++ show o) o
 
 update :: Eq a => (a -> b) -> a -> b -> a -> b
 update f a b = \x -> if x == a then b else f x

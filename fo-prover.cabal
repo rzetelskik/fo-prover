@@ -18,9 +18,12 @@ source-repository head
 executable FO-prover
   main-is: Main.hs
   other-modules:
+      Alternator
       FirstOrder
-      Formula
+      FirstOrderToPropositional
       Parser
+      Propositional
+      Prover
       Utils
       Paths_fo_prover
   hs-source-dirs:
@@ -36,6 +39,7 @@ executable FO-prover
       QuickCheck ==2.14.*
     , base >=4.11 && <5
     , containers ==0.6.*
+    , deepseq
     , mtl ==2.2.*
     , parsec ==3.1.*
     , random ==1.2.*

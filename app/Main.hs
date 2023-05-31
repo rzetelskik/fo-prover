@@ -1,5 +1,3 @@
-{-# LANGUAGE UnicodeSyntax, TypeSynonymInstances, FlexibleInstances, LambdaCase #-}
-
 module Main where
 
 import Data.List
@@ -14,18 +12,18 @@ import Control.Monad.State
 
 import Test.QuickCheck hiding (Fun, (===))
 
-import FirstOrder
+import Prover (prover)
 import Parser hiding (one)
-
+ 
 main :: IO ()
 main = do
     eof <- hIsEOF stdin
     if eof
         then return ()
         else do
-                line <- getLine -- read the input
-                let phi = parseString line -- call the parser
-                let res = aedecide phi -- call the prover
-                if res
-                  then putStrLn "1" -- write 1 if the formula is a tautology
-                  else putStrLn "0" -- write 0 if the formula is not a tautology
+          line <- getLine -- read the input
+          let phi = parseString line -- call the parser
+          let res = prover phi -- call the prover
+          if res
+            then putStrLn "1" -- write 1 if the formula is a tautology
+            else putStrLn "0" -- write 0 if the formula is not a tautology
