@@ -295,6 +295,23 @@ pnf phi = pnf' . nnf $ phi
       
       phi -> phi
 
+miniscope :: Formula -> Formula
+miniscope = nnf . go where
+  go :: Formula -> Formula
+  go = \case
+    (Exists x (And phi psi)) | not $ x `freshIn` phi, x `freshIn` psi -> And (go $ Exists x phi) (go psi)
+                            | x `freshIn` phi, not $ x `freshIn` psi -> And (go phi) (go $ Exists x psi)
+    (Exists x (Or phi psi)) | not $ x `freshIn` phi, not $ x `freshIn` psi -> Or (go $ Exists x phi) (go $ Exists x psi)
+                            | not $ x `freshIn` phi -> Or (go $ Exists x phi) (go psi)
+                            | not $ x `freshIn` psi -> Or (go phi) (go $ Exists x psi)
+    (Forall x (And phi psi)) | not $ x `freshIn` phi, not $ x `freshIn` psi -> And (go $ Forall x phi) (go $ Forall x psi)
+                            | not $ x `freshIn` phi -> And (go $ Forall x phi) (go psi)
+                            | not $ x `freshIn` psi -> And (go phi) (go $ Forall x psi)
+    (Forall x (Or phi psi)) | not $ x `freshIn` phi, x `freshIn` psi -> Or (go $ Forall x phi) (go psi)
+                            | x `freshIn` phi, not $ x `freshIn` psi -> Or (go phi) (go $ Forall x psi)
+    phi -> phi
+
+
 skolemise :: Formula -> Formula
 skolemise = pnf . skolemise' . miniscope . fresh . nnf . close
   where
@@ -304,9 +321,6 @@ skolemise = pnf . skolemise' . miniscope . fresh . nnf . close
       go phi = \case
         [] -> phi
         (v:vs) -> go (Exists v phi) vs
-      
-    miniscope :: Formula -> Formula
-    miniscope = id
 
     skolemise' :: Formula -> Formula
     skolemise' phi = go phi [] where
