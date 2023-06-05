@@ -2,6 +2,7 @@ module FirstOrder where
 
 import System.IO
 import Data.List
+import Data.Ord (comparing)
 import Control.Monad
 import Control.Monad.State
 import Text.Parsec hiding (State)
@@ -361,6 +362,9 @@ constants s = [Fun c [] | (c, 0) <- s]
 
 nonConstants :: Signature -> Signature 
 nonConstants s = filter (\(_, c) -> c > 0) s
+
+sortSignature :: Signature -> Signature
+sortSignature = sortBy (comparing snd)
 
 groundInstances :: Formula -> [Term] -> [Formula]
 groundInstances phi ts = [apply s phi | s <- functions (fv phi) ts]

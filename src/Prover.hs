@@ -37,7 +37,7 @@ prop_aedecide = foldr ((&&) . aedecide) True [forallImpliesExists, lem, swap]
         swap = Exists "x" (Forall "y" $ t "x" "y") --> Forall "y" (Exists "x" $ t "x" "y")
 
 herbrandUniverse :: Signature -> [Term]
-herbrandUniverse = Alternator.toList . go
+herbrandUniverse = Alternator.toList . go . sortSignature
     where
         go s = do
             (n, c) <- Alternator.fromList s
