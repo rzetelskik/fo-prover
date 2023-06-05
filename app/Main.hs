@@ -1,17 +1,6 @@
 module Main where
 
-import Data.List
-
 import System.IO
-import System.Random
-import System.Timeout
-
-import Text.Printf
-
-import Control.Monad.State
-
-import Test.QuickCheck hiding (Fun, (===))
-
 import Prover (prover)
 import Parser hiding (one)
  

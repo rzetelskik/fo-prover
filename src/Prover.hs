@@ -51,11 +51,7 @@ prop_herbrandUniverse2 :: Bool
 prop_herbrandUniverse2 = take 5 ( (herbrandUniverse (sig (And (Rel "R" [Var "x", Fun "c" []]) (Not (Rel "R" [Fun "d" [], Fun "f" [Var "y"]])))))) == [Fun "c" [], Fun "d" [], Fun "f" [Fun "c" []], Fun "f" [Fun "d" []], Fun "f" [Fun "f" [Fun "c" []]]]
 
 prover :: FOProver
-prover phi = if null (nonConstants signature) 
-  then
-    not . sat_DP . convert . (foldl And T) $ gis
-  else
-    any not (map (sat_DP . convert . (foldl And T)) (gen gis))
+prover phi = solve phis
   where
     extendSignature :: Signature -> Signature
     extendSignature s = if null . constants $ s then ("c", 0) : s else s
@@ -66,9 +62,12 @@ prover phi = if null (nonConstants signature)
         go phis = do 
           inf <- Alternator.fromList [1..]
           replicateM inf (Alternator.fromList phis)
-
     
+    solve :: [[Formula]] -> Bool
+    solve phis = or (map (not . sat_DP . convert . (foldl And T)) phis)
+
     phi' = transform phi
     signature = extendSignature (sig phi')
     universe = herbrandUniverse signature
     gis = groundInstances phi' universe
+    phis = if null (nonConstants signature) then [gis] else gen gis

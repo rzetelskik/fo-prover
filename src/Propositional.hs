@@ -1,6 +1,7 @@
 module Propositional where
 
 import Data.List
+import qualified Data.HashSet as HashSet
 import Control.Monad
 import Control.Monad.State
 import Test.QuickCheck
@@ -139,14 +140,14 @@ cnf2formula lss = foldr1 And (map go lss) where
   go2 (Pos p) = Prop p
   go2 (Neg p) = Not (Prop p)
   
-positive_literals :: CNFClause -> [PropName]
-positive_literals ls = nub [p | Pos p <- ls]
+positive_literals :: CNFClause -> HashSet.HashSet PropName
+positive_literals ls = HashSet.fromList [p | Pos p <- ls]
 
-negative_literals :: CNFClause -> [PropName]
-negative_literals ls = nub [p | Neg p <- ls]
+negative_literals :: CNFClause -> HashSet.HashSet PropName
+negative_literals ls = HashSet.fromList [p | Neg p <- ls]
 
-literals :: [Literal] -> [PropName]
-literals ls = nub $ positive_literals ls ++ negative_literals ls
+literals :: [Literal] -> HashSet.HashSet PropName
+literals ls = HashSet.union (positive_literals ls) (negative_literals ls)
 
 cnf :: Formula -> CNF
 cnf = go . nnf where
@@ -195,7 +196,7 @@ prop_ecnf :: Formula -> Bool
 prop_ecnf phi = equi_satisfiable phi (cnf2formula $ ecnf phi)
 
 remove_tautologies :: CNF -> CNF
-remove_tautologies = filter (\xs -> null $ intersect (positive_literals xs) (negative_literals xs))
+remove_tautologies = filter (\xs -> null $ HashSet.intersection (positive_literals xs) (negative_literals xs))
 
 prop_remove_tautologies :: Bool
 prop_remove_tautologies = remove_tautologies [[Pos "p", Neg "p"], [Pos "p", Pos "q"], [Pos "q", Neg "q"]] == [[Pos "p", Pos "q"]]
@@ -228,11 +229,11 @@ prop_one_literal =
     [[]]
 
 affirmative_negative :: CNF -> CNF
-affirmative_negative cnf = filter (null . intersect all . map literal2var) cnf
+affirmative_negative cnf = filter (null . (HashSet.intersection pureAll) . HashSet.fromList . (map literal2var)) cnf
   where
-    all = [p | p <- ps, not $ elem p ns] ++ [n | n <- ns, not $ elem n ps]
-    ps = concat $ map positive_literals cnf
-    ns = concat $ map negative_literals cnf
+    ps = foldr (HashSet.union . positive_literals) HashSet.empty cnf 
+    ns = foldr (HashSet.union . negative_literals) HashSet.empty cnf 
+    pureAll = HashSet.union (HashSet.difference ps ns) (HashSet.difference ns ps) 
 
 prop_affirmative_negative :: Bool
 prop_affirmative_negative =
