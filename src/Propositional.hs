@@ -253,8 +253,9 @@ prop_resolution = resolution [[Pos "p", Pos "q"],[Neg "p", Neg "q"]] == [[Pos "q
 dp :: CNF -> Bool
 dp [] = True
 dp cnf | [] `elem` cnf = False
-       | otherwise = dp (resolution (converge (converge (converge affirmativeNegative . converge oneLiteral . removeTautologies)) cnf))
+       | otherwise = dp (resolution (converge (converge affirmativeNegative . converge oneLiteral . removeTautologies) cnf))
 
 satDP :: SATSolver
 satDP form = dp cnf where
   cnf = ecnf form
+
