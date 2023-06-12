@@ -3,10 +3,10 @@ module Main where
 import System.IO
 import Prover (prover)
 import Parser hiding (one)
- 
+
 main :: IO ()
 main = do
-    eof <- hIsEOF stdin
+    eof <- isEOF
     if eof
         then return ()
         else do

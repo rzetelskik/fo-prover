@@ -1,15 +1,9 @@
 module FirstOrder where
 
-import System.IO
 import Data.List
 import Data.Ord (comparing)
 import Control.Monad
 import Control.Monad.State
-import Text.Parsec hiding (State)
-import Text.ParserCombinators.Parsec hiding (State)
-import Text.ParserCombinators.Parsec.Expr
-import Text.ParserCombinators.Parsec.Language
-import qualified Text.ParserCombinators.Parsec.Token as Token
 import Test.QuickCheck hiding (Fun, (===))
 
 import Utils
@@ -91,7 +85,7 @@ instance Arbitrary Term where
     f size | size == 0 || size == 1 = do x <- arbitrary
                                          return $ Var x
            | otherwise = frequency [ (1, go sizes) | sizes <- catalan size]
-              where go sizes = do ts <- sequence $ map f sizes
+              where go sizes = do ts <- mapM f sizes
                                   return $ Fun "f" ts
 
 instance Arbitrary Formula where
@@ -99,11 +93,11 @@ instance Arbitrary Formula where
     f 0 = do ts <- arbitrary
              return $ Rel "R" ts
     f size = frequency [
-      (1, liftM Not (f (size - 1))),
+      (1, fmap Not (f (size - 1))),
       (4, do
         size' <- choose (0, size - 1)
         conn <- oneof $ map return [And, Or, Implies, Iff]
-        left <- f $ size'
+        left <- f size'
         right <- f $ size - size' - 1
         return $ conn left right),
       (5, do
@@ -142,7 +136,7 @@ vars (Exists x phi) = nub $ x : vars phi
 vars (Forall x phi) = nub $ x : vars phi
 
 freshIn :: VarName -> Formula -> Bool
-x `freshIn` phi = not $ x `elem` vars phi
+x `freshIn` phi = x `notElem` vars phi
 
 freshVariant :: VarName -> Formula -> VarName
 freshVariant x phi = head [ y | y <- variants x, y `freshIn` phi ]
@@ -169,8 +163,8 @@ renameT x y (Var z)
 renameT x y (Fun f ts) = Fun f (map (renameT x y) ts)
 
 rename :: VarName -> VarName -> Formula -> Formula
-rename x y T = T
-rename x y F = F
+rename _ _ T = T
+rename _ _ F = F
 rename x y (Rel r ts) = Rel r (map (renameT x y) ts)
 rename x y (Not phi) = Not (rename x y phi)
 rename x y (And phi psi) = And (rename x y phi) (rename x y psi)
@@ -198,53 +192,53 @@ fresh phi = evalState (go phi) $ fv phi
         go T = return T
         go F = return F
         go phi@(Rel _ _) = return phi
-        go (Not phi) = liftM Not (go phi)
+        go (Not phi) = fmap Not (go phi)
         go (And phi psi) = liftM2 And (go phi) (go psi)
         go (Or phi psi) = liftM2 Or (go phi) (go psi)
         go (Implies phi psi) = liftM2 Implies (go phi) (go psi)
         go (Iff phi psi) = liftM2 Iff (go phi) (go psi)
         go (Forall x phi) = go2 Forall x phi
         go (Exists x phi) = go2 Exists x phi
-        
+
         go2 quantifier x phi =
           do xs <- get
-             let y = head [y | y <- variants x, not $ y `elem` xs]
+             let y = head [y | y <- variants x, y `notElem` xs]
              let psi = rename x y phi
              put $ y : xs
-             liftM (quantifier y) $ go psi
+             fmap (quantifier y) $ go psi
 
 nnf :: Formula -> Formula
 nnf = \case
   (Not T) -> F
   (Not F) -> T
-  
-  phi@(Rel r vs) -> phi
-  phi@(Not (Rel r vs)) -> phi
-  
+
+  phi@(Rel _ _) -> phi
+  phi@(Not (Rel _ _)) -> phi
+
   (And phi psi) -> And (nnf phi) (nnf psi)
   (Not (And phi psi)) -> Or (nnf (Not phi)) (nnf (Not psi))
-  
+
   (Or phi psi) -> Or (nnf phi) (nnf psi)
   (Not (Or phi psi)) -> And (nnf (Not phi)) (nnf (Not psi))
-  
+
   (Implies phi psi) -> Or (nnf (Not phi)) (nnf psi)
   (Not (Implies phi psi)) -> And (nnf phi) (nnf (Not psi))
-  
+
   (Iff phi psi) -> And (Or (nnf (Not phi)) (nnf psi)) (Or (nnf (Not psi)) (nnf phi))
   (Not (Iff phi psi)) -> Or (And (nnf phi) (nnf (Not psi))) (And (nnf psi) (nnf (Not phi)))
-  
+
   (Not (Not phi)) -> nnf phi
-  
+
   (Exists x phi) -> Exists x (nnf phi)
   (Not (Exists x phi)) -> Forall x (nnf (Not phi))
-  
+
   (Forall x phi) -> Forall x (nnf phi)
   (Not (Forall x phi)) -> Exists x (nnf (Not phi))
 
   phi -> phi
 
 pnf :: Formula -> Formula
-pnf phi = pnf' . nnf $ phi
+pnf = pnf' . nnf
   where
     pnf' :: Formula -> Formula
     pnf' = \case
@@ -257,43 +251,43 @@ pnf phi = pnf' . nnf $ phi
     pull_quantifiers = \case
       (And (Forall x phi) (Forall x' psi)) -> if x == x' then
           Forall x (pull_quantifiers $ And phi psi)
-        else 
+        else
           let y = freshVariant x (And phi psi) in Forall y (pull_quantifiers $ And (rename x y phi) (rename x' y psi))
 
-      (And (Forall x phi) psi) -> 
+      (And (Forall x phi) psi) ->
         if x `freshIn` psi then
           Forall x (pull_quantifiers $ And phi psi)
         else
           let y = freshVariant x (And phi psi) in Forall y (pull_quantifiers $ And (rename x y phi) psi)
-      
+
       (And phi psi@(Forall _ _)) -> pull_quantifiers (And psi phi)
-      
+
       (Or (Forall x phi) psi) -> if x `freshIn` psi then
           Forall x (pull_quantifiers $ Or phi psi)
-        else 
+        else
           let y = freshVariant x (Or phi psi) in Forall y (pull_quantifiers $ Or (rename x y phi) psi)
-          
+
       (Or phi psi@(Forall _ _)) -> pull_quantifiers (Or psi phi)
-      
+
       (And (Exists x phi) psi) -> if x `freshIn` psi then
           Exists x (pull_quantifiers $ And phi psi)
-        else 
+        else
           let y = freshVariant x (And phi psi) in Exists y (pull_quantifiers $ And (rename x y phi) psi)
 
       (And phi psi@(Exists _ _)) -> pull_quantifiers (And psi phi)
-      
+
       (Or (Exists x phi) (Exists x' psi)) -> if x == x' then
           Exists x (pull_quantifiers $ Or phi psi)
-        else 
+        else
           let y = freshVariant x (Or phi psi) in Exists y (pull_quantifiers $ Or (rename x y phi) (rename x' y psi))
-      
+
       (Or (Exists x phi) psi) -> if x `freshIn` psi then
           Exists x (pull_quantifiers $ Or phi psi)
-        else 
+        else
           let y = freshVariant x (Or phi psi) in Exists y (pull_quantifiers $ Or (rename x y phi) psi)
-          
+
       (Or phi psi@(Exists _ _)) -> pull_quantifiers (Or psi phi)
-      
+
       phi -> phi
 
 miniscope :: Formula -> Formula
@@ -348,7 +342,7 @@ sigT (Fun f ts) = nub $ (f, length ts) : concatMap sigT ts
 sig :: Formula -> Signature
 sig T = []
 sig F = []
-sig (Rel r ts) = concatMap sigT ts
+sig (Rel _ ts) = concatMap sigT ts
 sig (Not phi) = sig phi
 sig (And phi psi) = nub $ sig phi ++ sig psi
 sig (Or phi psi) = nub $ sig phi ++ sig psi
@@ -360,8 +354,8 @@ sig (Forall _ phi) = sig phi
 constants :: Signature -> [Term]
 constants s = [Fun c [] | (c, 0) <- s]
 
-nonConstants :: Signature -> Signature 
-nonConstants s = filter (\(_, c) -> c > 0) s
+nonConstants :: Signature -> Signature
+nonConstants = filter (\(_, c) -> c > 0)
 
 sortSignature :: Signature -> Signature
 sortSignature = sortBy (comparing snd)
@@ -379,29 +373,3 @@ prop_groundInstances = groundInstances
       Rel "r" [Fun "c" [],Fun "c" [],Fun "d" []],
       Rel "r" [Fun "d" [],Fun "d" [],Fun "d" []]
       ]
-
-atomicFormulas :: Formula -> [Formula]
-atomicFormulas T = []
-atomicFormulas F = []
-atomicFormulas phi@(Rel _ ts) = [phi]
-atomicFormulas (Not phi) = atomicFormulas phi
-atomicFormulas (And phi psi) = nub $ atomicFormulas phi ++ atomicFormulas psi
-atomicFormulas (Or phi psi) = nub $ atomicFormulas phi ++ atomicFormulas psi
-atomicFormulas (Implies phi psi) = nub $ atomicFormulas phi ++ atomicFormulas psi
-atomicFormulas (Iff phi psi) = nub $ atomicFormulas phi ++ atomicFormulas psi
-atomicFormulas (Exists x phi) = atomicFormulas phi
-atomicFormulas (Forall x phi) = atomicFormulas phi
-
-sat :: SATSolver
-sat phi = or [ev int phi | int <- functions atoms [True, False]]
-  where 
-    atoms = atomicFormulas phi
-    
-    ev :: (Formula -> Bool) -> Formula -> Bool
-    ev int T = True
-    ev int F = False
-    ev int atom@(Rel _ _) = int atom
-    ev int (Not phi) = not (ev int phi)
-    ev int (Or phi psi) = ev int phi || ev int psi
-    ev int (And phi psi) = ev int phi && ev int psi
-    ev _ phi = error $ "unexpected formula: " ++ show phi

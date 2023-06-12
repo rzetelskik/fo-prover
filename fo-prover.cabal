@@ -34,7 +34,7 @@ executable FO-prover
       TypeSynonymInstances
       FlexibleInstances
       LambdaCase
-  ghc-options: -Wall
+  ghc-options: -Wall -Wno-name-shadowing -Wno-type-defaults -Wno-missing-signatures
   build-depends:
       QuickCheck ==2.14.*
     , base >=4.13 && <5

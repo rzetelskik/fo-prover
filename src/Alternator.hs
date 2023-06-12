@@ -2,14 +2,14 @@ module Alternator where
 
 import Control.Monad
 
-newtype Alternator a = Alternator [a] 
+newtype Alternator a = Alternator [a]
   deriving (Eq, Ord, Show)
 
 toList :: Alternator a -> [a]
 toList (Alternator l) = l
 
 fromList :: [a] -> Alternator a
-fromList l = Alternator l
+fromList = Alternator
 
 instance Applicative Alternator where
   (<*>) = ap
@@ -20,12 +20,12 @@ instance Functor Alternator where
 
 instance Monad Alternator where
   (Alternator []) >>= _ = Alternator []
-  (Alternator (x:xs)) >>= f = 
-    case f x of 
+  (Alternator (x:xs)) >>= f =
+    case f x of
       (Alternator []) -> Alternator xs >>= f
-      (Alternator (y:ys)) -> Alternator (y:(go ys (toList (Alternator xs >>= f))))
+      (Alternator (y:ys)) -> Alternator (y:go ys (toList (Alternator xs >>= f)))
         where
             go :: [a] -> [a] -> [a]
             go l [] = l
             go [] l = l
-            go (x:xs) (y:ys) = x:y:(go xs ys)
+            go (x:xs) (y:ys) = x:y:go xs ys

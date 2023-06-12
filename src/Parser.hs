@@ -1,15 +1,10 @@
 module Parser where
 
-import System.IO
-import Control.Monad
 import Text.Parsec
 import Text.ParserCombinators.Parsec
-import Text.ParserCombinators.Parsec.Expr
 import Text.ParserCombinators.Parsec.Language
 import qualified Text.ParserCombinators.Parsec.Token as Token
 import qualified Text.ParserCombinators.Parsec as Parsec
-import Test.QuickCheck hiding (Fun)
-import Utils
 import FirstOrder
 
 languageDef =
@@ -58,7 +53,7 @@ term = parens term
 
 varTerm :: Parser Term
 varTerm = do reserved "Var"
-             reservedOp "\"" 
+             reservedOp "\""
              name <- identifier
              reservedOp "\""
              return $ Var name
@@ -66,7 +61,7 @@ varTerm = do reserved "Var"
 funTerm :: Parser Term
 funTerm = do
     reserved "Fun"
-    reservedOp "\"" 
+    reservedOp "\""
     f <- identifier
     reservedOp "\""
     ts <- list term
@@ -75,9 +70,9 @@ funTerm = do
 list :: Parser a -> Parser [a]
 list parser = do
     reservedOp "["
-    list <- (oneOrMore parser <|> zero)
+    list <- oneOrMore parser <|> zero
     reservedOp "]"
-    return $ list
+    return list
 
 zero :: Parser [a]
 zero = return []
@@ -88,7 +83,7 @@ oneOrMore parser = Parsec.try (more parser) <|> one parser
 one :: Parser a -> Parser [a]
 one parser = do
     a <- parser
-    return $ [a]
+    return [a]
 
 more :: Parser a -> Parser [a]
 more parser = do
@@ -100,7 +95,7 @@ more parser = do
 relFormula :: Parser Formula
 relFormula = do
     reserved "Rel"
-    reservedOp "\"" 
+    reservedOp "\""
     r <- identifier
     reservedOp "\""
     ts <- list term
@@ -110,7 +105,7 @@ relFormula = do
 propFormula :: Parser Formula
 propFormula = do
     reserved "Prop"
-    reservedOp "\"" 
+    reservedOp "\""
     r <- identifier
     reservedOp "\""
     return $ Rel r []
@@ -147,7 +142,7 @@ andFormula = do reserved "And"
                 phi <- formula
                 psi <- formula
                 return $ And phi psi
-                
+
 orFormula :: Parser Formula
 orFormula = do reserved "Or"
                phi <- formula
@@ -169,7 +164,7 @@ iffFormula = do reserved "Iff"
 existsFormula :: Parser Formula
 existsFormula = do
     reserved "Exists"
-    reservedOp "\"" 
+    reservedOp "\""
     x <- identifier
     reservedOp "\""
     phi <- formula
@@ -178,7 +173,7 @@ existsFormula = do
 forallFormula :: Parser Formula
 forallFormula = do
     reserved "Forall"
-    reservedOp "\"" 
+    reservedOp "\""
     x <- identifier
     reservedOp "\""
     phi <- formula
@@ -191,13 +186,13 @@ parseString str =
         Right r -> r
 
 parseIntegers :: String -> [Integer]
-parseIntegers str = 
+parseIntegers str =
     case parse (list integer)  "" str of
         Left e  -> error $ show e
         Right r -> r
 
 prop_parse :: Formula -> Bool
-prop_parse phi = phi == (parseString $ show phi)
+prop_parse phi = phi == parseString (show phi)
 
 phi0 = Rel "R" []
 phi1 = Exists "x" (Rel "R" [Fun "f" [Var "x", Var "y"], Var "z"])

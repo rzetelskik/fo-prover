@@ -24,7 +24,7 @@ data Formula =
     | Implies Formula Formula
     | Iff Formula Formula
     deriving (Eq, Ord, Show)
-    
+
 p, q, r, s, t :: Formula
 
 p = Prop "p"
@@ -47,11 +47,11 @@ infixr 4 <-->
 
 instance Arbitrary Formula where
     arbitrary = sized f where
-      
+
       f 0 = oneof $ map return $ [p, q, r, s, t] ++ [T, F]
 
       f size = frequency [
-        (1, liftM Not (f (size - 1))),
+        (1, fmap Not (f (size - 1))),
         (4, do
               size' <- choose (0, size - 1)
               conn <- oneof $ map return [And, Or, Implies, Iff]
@@ -59,7 +59,7 @@ instance Arbitrary Formula where
               right <- f $ size - size' - 1
               return $ conn left right)
         ]
-        
+
     shrink (Not phi) = [phi]
     shrink (Or phi psi) = [phi, psi]
     shrink (And phi psi) = [phi, psi]
@@ -74,10 +74,10 @@ eval T _ = True
 eval F _ = False
 eval (Prop p) rho = rho p
 eval (Not phi) rho = not (eval phi rho)
-eval (And phi psi) rho = (eval phi rho) && (eval psi rho)
-eval (Or phi psi) rho = (eval phi rho) || (eval psi rho)
-eval (Implies phi psi) rho = not (eval phi rho) || (eval psi rho)
-eval (Iff phi psi) rho = (eval phi rho == eval psi rho)
+eval (And phi psi) rho = eval phi rho && eval psi rho
+eval (Or phi psi) rho = eval phi rho || eval psi rho
+eval (Implies phi psi) rho = not (eval phi rho) || eval psi rho
+eval (Iff phi psi) rho = eval phi rho == eval psi rho
 
 variables :: Formula -> [PropName]
 variables = nub . go where
@@ -139,15 +139,15 @@ cnf2formula lss = foldr1 And (map go lss) where
   go ls = foldr1 Or (map go2 ls)
   go2 (Pos p) = Prop p
   go2 (Neg p) = Not (Prop p)
-  
-positive_literals :: CNFClause -> HashSet.HashSet PropName
-positive_literals ls = HashSet.fromList [p | Pos p <- ls]
 
-negative_literals :: CNFClause -> HashSet.HashSet PropName
-negative_literals ls = HashSet.fromList [p | Neg p <- ls]
+positiveLiterals :: CNFClause -> HashSet.HashSet PropName
+positiveLiterals ls = HashSet.fromList [p | Pos p <- ls]
+
+negativeLiterals :: CNFClause -> HashSet.HashSet PropName
+negativeLiterals ls = HashSet.fromList [p | Neg p <- ls]
 
 literals :: [Literal] -> HashSet.HashSet PropName
-literals ls = HashSet.union (positive_literals ls) (negative_literals ls)
+literals ls = HashSet.union (positiveLiterals ls) (negativeLiterals ls)
 
 cnf :: Formula -> CNF
 cnf = go . nnf where
@@ -157,12 +157,13 @@ cnf = go . nnf where
   go (Not (Prop p)) = [[Neg p]]
   go (phi `And` psi) = go phi ++ go psi
   go (phi `Or` psi) = [as ++ bs | as <- go phi, bs <- go psi]
+  go _ = error "unexpected formula"
 
-equi_satisfiable :: Formula -> Formula -> Bool
-equi_satisfiable phi psi = satisfiable phi == satisfiable psi
+equiSatisfiable :: Formula -> Formula -> Bool
+equiSatisfiable phi psi = satisfiable phi == satisfiable psi
 
 ecnf :: Formula -> CNF
-ecnf phi = cnf $ evalState (transform phi) (variables phi) 
+ecnf phi = cnf $ evalState (transform phi) (variables phi)
   where
     transform phi = do
       (x, phi') <- transform' phi
@@ -175,11 +176,11 @@ ecnf phi = cnf $ evalState (transform phi) (variables phi)
         put (var:vars)
         (x, phi') <- transform' phi
         let self = Prop var
-        return (self, (Iff self (Not x)):phi')
-      And phi psi -> transform'' (And) phi psi
-      Or phi psi -> transform'' (Or) phi psi
-      Implies phi psi -> transform'' (Implies) phi psi
-      Iff phi psi -> transform'' (Iff) phi psi
+        return (self, Iff self (Not x):phi')
+      And phi psi -> transform'' And phi psi
+      Or phi psi -> transform'' Or phi psi
+      Implies phi psi -> transform'' Implies phi psi
+      Iff phi psi -> transform'' Iff phi psi
       phi -> do
         return (phi, [])
 
@@ -190,74 +191,70 @@ ecnf phi = cnf $ evalState (transform phi) (variables phi)
         (l, phi') <- transform' phi
         (r, psi') <- transform' psi
         let self = Prop var
-        return (self, ((Iff self (op l r)):(phi' ++ psi')))
+        return (self, Iff self (op l r) : (phi' ++ psi'))
 
 prop_ecnf :: Formula -> Bool
-prop_ecnf phi = equi_satisfiable phi (cnf2formula $ ecnf phi)
+prop_ecnf phi = equiSatisfiable phi (cnf2formula $ ecnf phi)
 
-remove_tautologies :: CNF -> CNF
-remove_tautologies = filter (\xs -> null $ HashSet.intersection (positive_literals xs) (negative_literals xs))
+removeTautologies :: CNF -> CNF
+removeTautologies = filter (\xs -> null $ HashSet.intersection (positiveLiterals xs) (negativeLiterals xs))
 
-prop_remove_tautologies :: Bool
-prop_remove_tautologies = remove_tautologies [[Pos "p", Neg "p"], [Pos "p", Pos "q"], [Pos "q", Neg "q"]] == [[Pos "p", Pos "q"]]
+prop_removeTautologies :: Bool
+prop_removeTautologies = removeTautologies [[Pos "p", Neg "p"], [Pos "p", Pos "q"], [Pos "q", Neg "q"]] == [[Pos "p", Pos "q"]]
 
-one_literal :: CNF -> CNF
-one_literal = converge one_literal'
+oneLiteral :: CNF -> CNF
+oneLiteral = converge oneLiteral'
   where
-    one_literal' :: CNF -> CNF
-    one_literal' cnf = foldr clear cnf (singles cnf)
+    oneLiteral' :: CNF -> CNF
+    oneLiteral' cnf = foldr clear cnf (singles cnf)
 
     singles :: CNF -> [Literal]
     singles = concat . filter (\xs -> length xs == 1)
 
     clear :: Literal -> CNF -> CNF
-    clear l = map (filter (/= opposite l)) . filter (not . elem l)
+    clear l = map (filter (/= opposite l)) . filter (notElem l)
 
-prop_one_literal :: Bool
-prop_one_literal =
-  one_literal
+prop_oneLiteral :: Bool
+prop_oneLiteral =
+  oneLiteral
     [[Pos "p"], [Pos "p", Pos "q", Pos "p", Pos "r"], [Neg "q", Pos "r", Neg "p", Neg "r", Neg "p"], [Neg "q", Neg "p"], [Pos "q", Pos "r", Pos "s"], [Neg "p", Pos "p"]] ==
     [[Pos "r",Pos "s"]] &&
-  one_literal
+  oneLiteral
     [[Pos "p"],[Pos "p1"],[Neg "p",Pos "q"],[Pos "p1",Pos "p0"],[Pos "q",Neg "p0",Pos "p1"],[Neg "p0",Pos "s"],[Neg "q0",Neg "p"],[Neg "s",Neg "p",Pos "p0"]] ==
     [[Neg "p0",Pos "s"],[Neg "s",Pos "p0"]] &&
-  one_literal
+  oneLiteral
     [[Pos "q"],[Pos "p0"],[Neg "p0",Pos "s"],[Neg "p0"]] ==
     [[]]
 
-affirmative_negative :: CNF -> CNF
-affirmative_negative cnf = filter (null . (HashSet.intersection pureAll) . HashSet.fromList . (map literal2var)) cnf
+affirmativeNegative :: CNF -> CNF
+affirmativeNegative cnf = filter (null . HashSet.intersection pureAll . HashSet.fromList . map literal2var) cnf
   where
-    ps = foldr (HashSet.union . positive_literals) HashSet.empty cnf 
-    ns = foldr (HashSet.union . negative_literals) HashSet.empty cnf 
-    pureAll = HashSet.union (HashSet.difference ps ns) (HashSet.difference ns ps) 
+    ps = foldr (HashSet.union . positiveLiterals) HashSet.empty cnf
+    ns = foldr (HashSet.union . negativeLiterals) HashSet.empty cnf
+    pureAll = HashSet.union (HashSet.difference ps ns) (HashSet.difference ns ps)
 
-prop_affirmative_negative :: Bool
-prop_affirmative_negative =
-  affirmative_negative
+prop_affirmativeNegative :: Bool
+prop_affirmativeNegative =
+  affirmativeNegative
     [[Neg "p2",Pos "p"],[Neg "p2",Pos "p1"],[Neg "p",Neg "p1",Neg "p2"],[Neg "p1",Pos "q"],[Neg "p1",Pos "p0"],[Neg "q",Neg "p0",Pos "p1"],[Neg "p0",Pos "s"],[Neg "p0",Neg "p"],[Neg "s",Pos "p",Pos "p0"]] ==
     [[Neg "p1",Pos "q"],[Neg "p1",Pos "p0"],[Neg "q",Neg "p0",Pos "p1"],[Neg "p0",Pos "s"],[Neg "p0",Neg "p"],[Neg "s",Pos "p",Pos "p0"]] &&
-  affirmative_negative
-    [[Pos "p", Pos "q"], [Pos "p", Neg "q"]] ==
-    []
-    
+  null (affirmativeNegative
+    [[Pos "p", Pos "q"], [Pos "p", Neg "q"]])
+
 resolution :: CNF -> CNF
 resolution [] = []
 resolution ([]:_) = [[]]
-resolution cnf@((p:_):_) = filter (\c -> (notElem p c) && (notElem (opposite p) c)) cnf ++ 
-    liftM2 (++) (map (filter (p /=)) (filter (elem p) cnf)) (map (filter ((opposite p) /=)) (filter (elem (opposite p)) cnf)) 
+resolution cnf@((p:_):_) = filter (\c -> notElem p c && notElem (opposite p) c) cnf ++
+    liftM2 (++) (map (filter (p /=)) (filter (elem p) cnf)) (map (filter (opposite p /=)) (filter (elem (opposite p)) cnf))
 
 prop_resolution :: Bool
 prop_resolution = resolution [[Pos "p", Pos "q"],[Neg "p", Neg "q"]] == [[Pos "q", Neg "q"]]
 
 dp :: CNF -> Bool
 dp [] = True
-dp cnf | elem [] cnf = False
-       | otherwise = dp (resolution (converge (converge ((converge affirmative_negative) . (converge one_literal) . remove_tautologies)) cnf))
+dp cnf | [] `elem` cnf = False
+       | otherwise = dp (resolution (converge (converge (converge affirmativeNegative . converge oneLiteral . removeTautologies)) cnf))
 
-sat_DP :: SATSolver
-sat_DP form = dp cnf where
+satDP :: SATSolver
+satDP form = dp cnf where
   cnf = ecnf form
-
-prop_DP :: Formula -> Bool
-prop_DP phi = sat_DP phi == satisfiable phi

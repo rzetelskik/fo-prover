@@ -3,7 +3,7 @@ version: 0.0.1
 github: rzetelskik/fo-prover
 maintainer: Kacper Rzetelski <rzetelski.k@gmail.com>
 
-ghc-options: -Wall
+ghc-options: -Wall -Wno-name-shadowing -Wno-type-defaults -Wno-missing-signatures
 
 language: Haskell2010
 default-extensions:
