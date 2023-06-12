@@ -31,3 +31,6 @@ merges (as:ass) = merge as (merges ass)
 functions :: Eq a => [a] -> [b] -> [a -> b]
 functions [] _ = [undefined]
 functions (a:as) bs = merges [[update f a b | f <- functions as bs] | b <- bs]
+
+converge :: Eq a => (a -> a) -> a -> a
+converge = until =<< ((==) =<<)

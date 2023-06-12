@@ -5,7 +5,7 @@ import qualified Data.HashSet as HashSet
 import Control.Monad
 import Control.Monad.State
 import Test.QuickCheck
-import Utils (update)
+import Utils (update, converge)
 
 -- Variable names are just strings
 type PropName = String
@@ -204,9 +204,6 @@ prop_remove_tautologies = remove_tautologies [[Pos "p", Neg "p"], [Pos "p", Pos 
 one_literal :: CNF -> CNF
 one_literal = converge one_literal'
   where
-    converge :: Eq a => (a -> a) -> a -> a
-    converge = until =<< ((==) =<<)
-
     one_literal' :: CNF -> CNF
     one_literal' cnf = foldr clear cnf (singles cnf)
 
@@ -257,9 +254,6 @@ dp :: CNF -> Bool
 dp [] = True
 dp cnf | elem [] cnf = False
        | otherwise = dp (resolution (converge (converge ((converge affirmative_negative) . (converge one_literal) . remove_tautologies)) cnf))
-  where
-    converge :: Eq a => (a -> a) -> a -> a
-    converge = until =<< ((==) =<<)
 
 sat_DP :: SATSolver
 sat_DP form = dp cnf where
