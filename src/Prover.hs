@@ -4,7 +4,7 @@ import Control.Monad
 
 import qualified Alternator
 import FirstOrder
-import Propositional (satDP)
+import Propositional (satDPLL)
 import FirstOrderToPropositional (convert)
 
 removeUniveralQuantifiers :: Formula -> Formula
@@ -43,7 +43,7 @@ prover phi = solve phis
           replicateM inf (Alternator.fromList phis)
 
     solve :: [[Formula]] -> Bool
-    solve phis = not (all (satDP . convert . foldl And T) phis)
+    solve phis = not (all (satDPLL . convert . foldl And T) phis)
 
     phi' = transform phi
     signature = extendSignature (sig phi')

@@ -2,6 +2,9 @@ module Propositional where
 
 import Data.List
 import qualified Data.HashSet as HashSet
+import qualified Data.Map as Map
+import Data.Function (on)
+import Control.Arrow ((&&&))
 import Control.Monad
 import Control.Monad.State
 import Test.QuickCheck
@@ -259,3 +262,22 @@ satDP :: SATSolver
 satDP form = dp cnf where
   cnf = ecnf form
 
+dpll :: CNF -> Bool
+dpll [] = True
+dpll cnf | [] `elem` cnf = False
+         | otherwise = dpll' (converge (converge affirmativeNegative . converge oneLiteral . removeTautologies) cnf) where
+
+          dpll' :: CNF -> Bool
+          dpll' [] = True
+          dpll' cnf = dpll ([p]:cnf) || dpll ([opposite p]:cnf) where
+            p = chooseLiteral cnf
+
+            chooseLiteral :: CNF -> Literal
+            chooseLiteral cnf = Pos . fst . maximumBy (compare `on` snd) $ elemCount
+              where
+                elemCount = map (head &&& length) . group . sort $ ls
+                ls = concatMap (\c -> [p | Pos p <- c] ++ [p | Neg p <- c]) cnf
+
+satDPLL :: SATSolver
+satDPLL form = dpll cnf where
+  cnf = ecnf form
