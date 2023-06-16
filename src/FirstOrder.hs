@@ -308,8 +308,23 @@ miniscope = nnf . go where
 
 
 skolemise :: Formula -> Formula
-skolemise = pnf . skolemise' . miniscope . fresh . nnf . close
+skolemise = pnf . skolemise' . miniscope . fresh . nnf . close . removeUnusedQuantifiers
   where
+    removeUnusedQuantifiers :: Formula -> Formula
+    removeUnusedQuantifiers = \case
+      F -> F
+      T -> T
+      phi@(Rel _ _) -> phi
+      Not phi -> Not (removeUnusedQuantifiers phi)
+      Or phi psi -> Or (removeUnusedQuantifiers phi) (removeUnusedQuantifiers psi)
+      And phi psi -> And (removeUnusedQuantifiers phi) (removeUnusedQuantifiers psi)
+      Implies phi psi -> Implies (removeUnusedQuantifiers phi) (removeUnusedQuantifiers psi)
+      Iff phi psi -> Iff (removeUnusedQuantifiers phi) (removeUnusedQuantifiers psi)
+      Exists x phi | x `freshIn` phi -> removeUnusedQuantifiers phi
+                   | otherwise -> Exists x (removeUnusedQuantifiers phi)
+      Forall x phi | x `freshIn` phi -> removeUnusedQuantifiers phi
+                   | otherwise -> Forall x (removeUnusedQuantifiers phi)
+
     close :: Formula -> Formula
     close phi = go phi (fv phi) where
       go :: Formula -> [VarName] -> Formula
