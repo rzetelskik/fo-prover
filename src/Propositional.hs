@@ -109,7 +109,7 @@ tautology phi = and [eval phi rho | rho <- valuations (variables phi)]
 nnf :: Formula -> Formula
 nnf T = T
 nnf F = F
-nnf r@(Prop p) = r
+nnf r@(Prop _) = r
 nnf (Not phi) = case nnf phi of
   T -> F
   F -> T
